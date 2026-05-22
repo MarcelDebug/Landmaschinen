@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landmaschinen Verwaltung</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; 
+            color: #333; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .hidden { display: none !important; }
+
+        .auth-container { max-width: 400px; margin: 80px auto; text-align: center; }
+        .auth-container h1 { color: white; margin-bottom: 30px; font-size: 2.2em; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .auth-box { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .form-group { margin-bottom: 16px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #555; }
+        .form-group input, .form-group select { 
+            width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; 
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #667eea; }
+        .btn { 
+            padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; 
+            font-weight: 600; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; 
+        }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 14px; }
+        .btn-block { width: 100%; justify-content: center; }
+
+        .navbar { 
+            background: white; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; 
+            display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .nav-brand { font-size: 1.5em; font-weight: 700; color: #667eea; }
+        .nav-links { display: flex; gap: 12px; align-items: center; }
+        .nav-role { background: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f8fafc; font-weight: 600; color: #475569; font-size: 14px; text-transform: uppercase; }
+        tr:hover { background: #f8fafc; }
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-admin { background: #fee2e2; color: #991b1b; }
+        .badge-user { background: #dbeafe; color: #1e40af; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-returned { background: #f3f4f6; color: #374151; }
+        .badge-gap { background: #fef3c7; color: #92400e; }
+
+        .grid { display: grid; gap: 20px; }
+        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px; border-radius: 12px; text-align: center; }
+        .stat-value { font-size: 2.5em; font-weight: 700; margin: 8px 0; }
+        .stat-label { font-size: 14px; opacity: 0.9; text-transform: uppercase; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal { background: white; padding: 32px; border-radius: 16px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 1.5em; font-weight: 700; color: #1f2937; }
+        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+        .alert-success { background: #d1fae5; color: #065f46; }
+        .alert-error { background: #fee2e2; color: #991b1b; }
+        .alert-warning { background: #fef3c7; color: #92400e; }
+
+        .machine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .machine-card { background: white; border-radius: 12px; padding: 20px; border: 2px solid #e5e7eb; transition: all 0.3s; }
+        .machine-card:hover { border-color: #667eea; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .machine-card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; }
+        .machine-card-title { font-size: 1.2em; font-weight: 700; color: #1f2937; }
+        .machine-card-counter { background: #f3f4f6; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600; color: #4b5563; }
+        .machine-card-members { font-size: 13px; color: #6b7280; margin-bottom: 16px; padding: 8px; background: #f9fafb; border-radius: 6px; }
+
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; }
+        .tab { padding: 12px 20px; cursor: pointer; border: none; background: none; font-size: 15px; font-weight: 600; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+        .tab.active { color: #667eea; border-bottom-color: #667eea; }
+
+        .gap-item { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin-bottom: 12px; border-radius: 0 8px 8px 0; }
+        .gap-machine { font-weight: 700; color: #92400e; margin-bottom: 4px; }
+
+        .report-section { margin-bottom: 32px; }
+        .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb; }
+        .report-title { font-size: 1.3em; font-weight: 700; color: #1f2937; }
+        .report-total { background: #e0e7ff; color: #4338ca; padding: 8px 16px; border-radius: 8px; font-weight: 700; }
+
+        .checkbox-group { max-height: 200px; overflow-y: auto; border: 2px solid #e0e0e0; border-radius: 8px; padding: 12px; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+        .time-display { font-family: monospace; font-size: 1.1em; color: #059669; font-weight: 600; }
+        .section-title { font-size: 1.5em; font-weight: 700; color: #1f2937; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .empty-state { text-align: center; padding: 40px; color: #9ca3af; }
+
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; gap: 12px; }
+            .grid-3 { grid-template-columns: 1fr; }
+            .machine-grid { grid-template-columns: 1fr; }
+        }
+
+        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: white; animation: spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <!-- KONFIGURATION: Ersetze diese Werte mit deinen Supabase Daten -->
+    <script>
+        // ============================================================
+        // HIER DEINE SUPABASE DATEN EINTRAGEN:
+        // ============================================================
+        const SUPABASE_URL = 'https://bzrsevmrzwwnelftpykh.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_luPLYe7ntayHWcD4O9zbyw_lkJloVh1';
+        // ============================================================
+    </script>
+
+    <!-- Auth Screen -->
+    <div id="authScreen" class="auth-container">
+        <h1>🚜 Landmaschinen Verwaltung</h1>
+        <div class="auth-box">
+            <div id="loginForm">
+                <h2 style="margin-bottom: 20px; color: #1f2937;">Anmelden</h2>
+                <div id="loginAlert"></div>
+                <div class="form-group">
+                    <label>E-Mail</label>
+                    <input type="email" id="loginEmail" placeholder="name@beispiel.de" required>
+                </div>
+                <div class="form-group">
+                    <label>Passwort</label>
+                    <input type="password" id="loginPassword" placeholder="Passwort" required>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="login()" style="margin-top: 8px;">
+                    <span id="loginSpinner" class="loading hidden" style="margin-right: 8px;"></span>
+                    Anmelden
+                </button>
+                <p style="margin-top: 16px; color: #6b7280; font-size: 14px;">
+                    Noch kein Konto? <a href="#" onclick="toggleAuthMode()" style="color: #667eea; font-weight: 600;">Registrieren</a>
+                </p>
+            </div>
+
+            <div id="registerForm" class="hidden">
+                <h2 style="margin-bottom: 20px; color: #1f2937;">Registrieren</h2>
+                <div id="registerAlert"></div>
+                <div class="form-group">
+                    <label>Vorname</label>
+                    <input type="text" id="regFirstName" placeholder="Max" required>
+                </div>
+                <div class="form-group">
+                    <label>Nachname</label>
+                    <input type="text" id="regLastName" placeholder="Mustermann" required>
+                </div>
+                <div class="form-group">
+                    <label>E-Mail</label>
+                    <input type="email" id="regEmail" placeholder="name@beispiel.de" required>
+                </div>
+                <div class="form-group">
+                    <label>Passwort</label>
+                    <input type="password" id="regPassword" placeholder="Min. 6 Zeichen" required>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="register()" style="margin-top: 8px;">
+                    <span id="regSpinner" class="loading hidden" style="margin-right: 8px;"></span>
+                    Registrieren
+                </button>
+                <p style="margin-top: 16px; color: #6b7280; font-size: 14px;">
+                    Bereits registriert? <a href="#" onclick="toggleAuthMode()" style="color: #667eea; font-weight: 600;">Anmelden</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="appScreen" class="hidden">
+        <div class="container">
+            <nav class="navbar">
+                <div class="nav-brand">🚜 Landmaschinen</div>
+                <div class="nav-links">
+                    <span id="navUserName" style="color: #666; font-size: 14px;"></span>
+                    <span class="nav-role" id="navRole"></span>
+                    <button class="btn btn-secondary btn-sm" onclick="logout()">Abmelden</button>
+                </div>
+            </nav>
+
+            <!-- Admin View -->
+            <div id="adminView" class="hidden">
+                <div class="grid grid-3" style="margin-bottom: 24px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Maschinen</div>
+                        <div class="stat-value" id="statMachines">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Benutzer</div>
+                        <div class="stat-value" id="statUsers">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Ausleihen (Jahr)</div>
+                        <div class="stat-value" id="statRentals">-</div>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('machines')">Maschinen</button>
+                    <button class="tab" onclick="switchTab('users')">Benutzer</button>
+                    <button class="tab" onclick="switchTab('rentals')">Ausleihen</button>
+                    <button class="tab" onclick="switchTab('gaps')">Lücken</button>
+                    <button class="tab" onclick="switchTab('report')">Jahresabgleich</button>
+                </div>
+
+                <div id="tabMachines" class="tab-content">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 class="section-title">Maschinenverwaltung</h2>
+                            <button class="btn btn-success" onclick="openMachineModal()">+ Maschine</button>
+                        </div>
+                        <div id="machinesLoading" class="empty-state">Lade Maschinen...</div>
+                        <div class="table-container" id="machinesTableContainer" class="hidden">
+                            <table>
+                                <thead><tr><th>Name</th><th>Zählerstand</th><th>Mitglieder</th><th>Status</th><th>Aktionen</th></tr></thead>
+                                <tbody id="machinesTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabUsers" class="tab-content hidden">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 class="section-title">Benutzerverwaltung</h2>
+                        </div>
+                        <div id="usersLoading" class="empty-state">Lade Benutzer...</div>
+                        <div class="table-container" id="usersTableContainer" class="hidden">
+                            <table>
+                                <thead><tr><th>Name</th><th>E-Mail</th><th>Rolle</th><th>Maschinen</th></tr></thead>
+                                <tbody id="usersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabRentals" class="tab-content hidden">
+                    <div class="card">
+                        <h2 class="section-title">Alle Ausleihen</h2>
+                        <div id="rentalsLoading" class="empty-state">Lade Ausleihen...</div>
+                        <div class="table-container" id="rentalsTableContainer" class="hidden">
+                            <table>
+                                <thead><tr><th>Maschine</th><th>Benutzer</th><th>Start</th><th>Ende</th><th>Dauer</th><th>Zeitraum</th><th>Status</th></tr></thead>
+                                <tbody id="rentalsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabGaps" class="tab-content hidden">
+                    <div class="card">
+                        <h2 class="section-title">⚠️ Zähler-Lücken</h2>
+                        <div id="gapsContainer"></div>
+                    </div>
+                </div>
+
+                <div id="tabReport" class="tab-content hidden">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 class="section-title">📊 Jahresabgleich</h2>
+                            <select id="reportYear" onchange="generateYearlyReport()" style="padding: 8px; border-radius: 6px; border: 2px solid #e0e0e0;">
+                                <option value="2026">2026</option>
+                                <option value="2025">2025</option>
+                                <option value="2024">2024</option>
+                            </select>
+                        </div>
+                        <div id="reportContainer"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User View -->
+            <div id="userView">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchUserTab('myMachines')">Meine Maschinen</button>
+                    <button class="tab" onclick="switchUserTab('history')">Meine Historie</button>
+                </div>
+                <div id="userTabMyMachines" class="user-tab-content">
+                    <div class="card">
+                        <h2 class="section-title">Meine zugewiesenen Maschinen</h2>
+                        <div id="userMachinesGrid" class="machine-grid"></div>
+                    </div>
+                </div>
+                <div id="userTabHistory" class="user-tab-content hidden">
+                    <div class="card">
+                        <h2 class="section-title">Meine Nutzungshistorie</h2>
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>Maschine</th><th>Start-Zähler</th><th>End-Zähler</th><th>Dauer</th><th>Datum</th><th>Status</th></tr></thead>
+                                <tbody id="userHistoryTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Machine Modal -->
+    <div id="machineModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="machineModalTitle">Maschine hinzufügen</h3>
+                <button class="close-btn" onclick="closeMachineModal()">&times;</button>
+            </div>
+            <div id="machineAlert"></div>
+            <input type="hidden" id="machineId">
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="machineName" placeholder="z.B. Traktor XY-500" required>
+            </div>
+            <div class="form-group">
+                <label>Aktueller Zählerstand</label>
+                <input type="number" id="machineCounter" placeholder="0" min="0" required>
+            </div>
+            <div class="form-group">
+                <label>Mitglieder (Benutzer zuweisen)</label>
+                <div class="checkbox-group" id="machineMembers"></div>
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeMachineModal()" style="flex: 1;">Abbrechen</button>
+                <button class="btn btn-primary" onclick="saveMachine()" style="flex: 1;">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rental Modal -->
+    <div id="rentalModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="rentalModalTitle">Maschine ausleihen</h3>
+                <button class="close-btn" onclick="closeRentalModal()">&times;</button>
+            </div>
+            <div id="rentalAlert"></div>
+            <input type="hidden" id="rentalMachineId">
+            <div class="form-group">
+                <label>Maschine</label>
+                <input type="text" id="rentalMachineName" readonly style="background: #f3f4f6;">
+            </div>
+            <div class="form-group">
+                <label>Letzter Zählerstand</label>
+                <input type="number" id="rentalLastCounter" readonly style="background: #f3f4f6;">
+            </div>
+            <div class="form-group">
+                <label id="rentalCounterLabel">Neuer Zählerstand (Ausleihe)</label>
+                <input type="number" id="rentalCounter" placeholder="Aktuellen Zählerstand eingeben" min="0" required>
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeRentalModal()" style="flex: 1;">Abbrechen</button>
+                <button class="btn btn-primary" onclick="saveRentalAction()" style="flex: 1;" id="rentalBtn">Ausleihen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== SUPABASE INIT ====================
+        let supabase;
+        let currentUser = null;
+        let currentProfile = null;
+        let allUsers = [];
+        let allMachines = [];
+        let allRentals = [];
+        let allMembers = [];
+        let rentalAction = 'rent'; // 'rent' or 'return'
+        let activeRental = null;
+
+        function initSupabase() {
+            if (SUPABASE_URL.includes('HIER_DEINE')) {
+                alert('Bitte zuerst SUPABASE_URL und SUPABASE_KEY in der index.html eintragen!');
+                return false;
+            }
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            return true;
+        }
+
+        // ==================== AUTH ====================
+        function toggleAuthMode() {
+            document.getElementById('loginForm').classList.toggle('hidden');
+            document.getElementById('registerForm').classList.toggle('hidden');
+            clearAlerts();
+        }
+
+        function clearAlerts() {
+            document.getElementById('loginAlert').innerHTML = '';
+            document.getElementById('registerAlert').innerHTML = '';
+            document.getElementById('machineAlert').innerHTML = '';
+            document.getElementById('rentalAlert').innerHTML = '';
+        }
+
+        function showAlert(elementId, message, type = 'error') {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => el.innerHTML = '', 5000);
+        }
+
+        function setLoading(id, loading) {
+            const spinner = document.getElementById(id);
+            if (spinner) spinner.classList.toggle('hidden', !loading);
+        }
+
+        async function register() {
+            if (!initSupabase()) return;
+            setLoading('regSpinner', true);
+
+            const firstName = document.getElementById('regFirstName').value.trim();
+            const lastName = document.getElementById('regLastName').value.trim();
+            const email = document.getElementById('regEmail').value.trim().toLowerCase();
+            const password = document.getElementById('regPassword').value;
+
+            if (!firstName || !lastName || !email || !password) {
+                showAlert('registerAlert', 'Bitte alle Felder ausfüllen.');
+                setLoading('regSpinner', false);
+                return;
+            }
+            if (password.length < 6) {
+                showAlert('registerAlert', 'Passwort mindestens 6 Zeichen.');
+                setLoading('regSpinner', false);
+                return;
+            }
+
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { first_name: firstName, last_name: lastName }
+                }
+            });
+
+            setLoading('regSpinner', false);
+
+            if (error) {
+                showAlert('registerAlert', error.message);
+                return;
+            }
+
+            showAlert('registerAlert', 'Registrierung erfolgreich! Bestätige deine E-Mail (falls aktiviert) und melde dich an.', 'success');
+            setTimeout(toggleAuthMode, 2000);
+        }
+
+        async function login() {
+            if (!initSupabase()) return;
+            setLoading('loginSpinner', true);
+
+            const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+            const password = document.getElementById('loginPassword').value;
+
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            setLoading('loginSpinner', false);
+
+            if (error) {
+                showAlert('loginAlert', error.message);
+                return;
+            }
+
+            currentUser = data.user;
+            await loadProfile();
+        }
+
+        async function loadProfile() {
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+            if (profile) {
+                currentProfile = profile;
+                showApp();
+            } else {
+                showAlert('loginAlert', 'Profil nicht gefunden. Bitte erneut registrieren.');
+            }
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+            currentUser = null;
+            currentProfile = null;
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('appScreen').classList.add('hidden');
+        }
+
+        async function checkSession() {
+            if (!initSupabase()) return;
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                await loadProfile();
+            }
+        }
+
+        // ==================== DATA LOADING ====================
+        async function loadAllData() {
+            // Load users
+            const { data: users } = await supabase.from('profiles').select('*');
+            allUsers = users || [];
+
+            // Load machines with members
+            const { data: machines } = await supabase.from('machines').select('*');
+            allMachines = machines || [];
+
+            const { data: members } = await supabase.from('machine_members').select('*');
+            allMembers = members || [];
+
+            // Load rentals
+            const { data: rentals } = await supabase.from('rentals').select('*');
+            allRentals = rentals || [];
+        }
+
+        function getMachineMembers(machineId) {
+            return allMembers.filter(m => m.machine_id === machineId).map(m => m.user_id);
+        }
+
+        function getUserMachines(userId) {
+            const machineIds = allMembers.filter(m => m.user_id === userId).map(m => m.machine_id);
+            return allMachines.filter(m => machineIds.includes(m.id));
+        }
+
+        function getUserName(userId) {
+            const u = allUsers.find(user => user.id === userId);
+            return u ? `${u.first_name} ${u.last_name}` : 'Unbekannt';
+        }
+
+        function getMachineName(machineId) {
+            const m = allMachines.find(mac => mac.id === machineId);
+            return m ? m.name : 'Unbekannt';
+        }
+
+        // ==================== APP UI ====================
+        async function showApp() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('appScreen').classList.remove('hidden');
+
+            document.getElementById('navUserName').textContent = `${currentProfile.first_name} ${currentProfile.last_name}`;
+            document.getElementById('navRole').textContent = currentProfile.role === 'admin' ? 'Admin' : 'Anwender';
+
+            await loadAllData();
+
+            if (currentProfile.role === 'admin') {
+                document.getElementById('adminView').classList.remove('hidden');
+                document.getElementById('userView').classList.add('hidden');
+                updateAdminStats();
+                await renderMachinesTable();
+                await renderUsersTable();
+                await renderRentalsTable();
+                renderGaps();
+                generateYearlyReport();
+            } else {
+                document.getElementById('adminView').classList.add('hidden');
+                document.getElementById('userView').classList.remove('hidden');
+                renderUserMachines();
+                renderUserHistory();
+            }
+        }
+
+        function updateAdminStats() {
+            const currentYear = new Date().getFullYear();
+            const yearRentals = allRentals.filter(r => new Date(r.start_date).getFullYear() === currentYear);
+            document.getElementById('statMachines').textContent = allMachines.length;
+            document.getElementById('statUsers').textContent = allUsers.length;
+            document.getElementById('statRentals').textContent = yearRentals.length;
+        }
+
+        // ==================== ADMIN: MACHINES ====================
+        async function renderMachinesTable() {
+            document.getElementById('machinesLoading').classList.add('hidden');
+            document.getElementById('machinesTableContainer').classList.remove('hidden');
+
+            const tbody = document.getElementById('machinesTable');
+            if (allMachines.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Keine Maschinen vorhanden</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = allMachines.map(m => {
+                const activeRental = allRentals.find(r => r.machine_id === m.id && r.status === 'active');
+                const memberIds = getMachineMembers(m.id);
+                const memberNames = memberIds.map(uid => getUserName(uid)).join(', ') || 'Keine';
+
+                return `
+                    <tr>
+                        <td><strong>${m.name}</strong></td>
+                        <td>${m.current_counter.toLocaleString('de-DE')}</td>
+                        <td style="font-size: 13px; color: #6b7280;">${memberNames}</td>
+                        <td>${activeRental ? '<span class="badge badge-active">Ausgeliehen</span>' : '<span class="badge badge-returned">Verfügbar</span>'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="editMachine(${m.id})">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteMachine(${m.id})">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function openMachineModal(machineId = null) {
+            const membersContainer = document.getElementById('machineMembers');
+            membersContainer.innerHTML = allUsers.filter(u => u.role === 'user').map(u => `
+                <div class="checkbox-item">
+                    <input type="checkbox" value="${u.id}" id="mm_${u.id}">
+                    <label for="mm_${u.id}">${u.first_name} ${u.last_name}</label>
+                </div>
+            `).join('');
+
+            if (machineId) {
+                const machine = allMachines.find(m => m.id === machineId);
+                document.getElementById('machineModalTitle').textContent = 'Maschine bearbeiten';
+                document.getElementById('machineId').value = machine.id;
+                document.getElementById('machineName').value = machine.name;
+                document.getElementById('machineCounter').value = machine.current_counter;
+
+                const memberIds = getMachineMembers(machineId);
+                memberIds.forEach(uid => {
+                    const cb = document.getElementById(`mm_${uid}`);
+                    if (cb) cb.checked = true;
+                });
+            } else {
+                document.getElementById('machineModalTitle').textContent = 'Maschine hinzufügen';
+                document.getElementById('machineId').value = '';
+                document.getElementById('machineName').value = '';
+                document.getElementById('machineCounter').value = '';
+            }
+
+            clearAlerts();
+            document.getElementById('machineModal').classList.remove('hidden');
+        }
+
+        function closeMachineModal() {
+            document.getElementById('machineModal').classList.add('hidden');
+        }
+
+        async function saveMachine() {
+            const id = document.getElementById('machineId').value;
+            const name = document.getElementById('machineName').value.trim();
+            const counter = parseInt(document.getElementById('machineCounter').value) || 0;
+
+            if (!name) {
+                showAlert('machineAlert', 'Bitte einen Namen eingeben.');
+                return;
+            }
+
+            const memberIds = Array.from(document.querySelectorAll('#machineMembers input:checked')).map(cb => cb.value);
+
+            if (id) {
+                // Update machine
+                await supabase.from('machines').update({ name, current_counter: counter }).eq('id', id);
+                // Update members: delete old, insert new
+                await supabase.from('machine_members').delete().eq('machine_id', id);
+                if (memberIds.length > 0) {
+                    const inserts = memberIds.map(uid => ({ machine_id: parseInt(id), user_id: uid }));
+                    await supabase.from('machine_members').insert(inserts);
+                }
+            } else {
+                // Insert machine
+                const { data: newMachine } = await supabase.from('machines').insert({ name, current_counter: counter }).select().single();
+                if (memberIds.length > 0 && newMachine) {
+                    const inserts = memberIds.map(uid => ({ machine_id: newMachine.id, user_id: uid }));
+                    await supabase.from('machine_members').insert(inserts);
+                }
+            }
+
+            closeMachineModal();
+            await loadAllData();
+            renderMachinesTable();
+            updateAdminStats();
+        }
+
+        async function editMachine(id) {
+            await openMachineModal(id);
+        }
+
+        async function deleteMachine(id) {
+            if (!confirm('Maschine wirklich löschen?')) return;
+            await supabase.from('machines').delete().eq('id', id);
+            await loadAllData();
+            renderMachinesTable();
+            updateAdminStats();
+        }
+
+        // ==================== ADMIN: USERS ====================
+        async function renderUsersTable() {
+            document.getElementById('usersLoading').classList.add('hidden');
+            document.getElementById('usersTableContainer').classList.remove('hidden');
+
+            const tbody = document.getElementById('usersTable');
+            if (allUsers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Keine Benutzer vorhanden</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = allUsers.map(u => {
+                const userMachines = getUserMachines(u.id);
+                const machineNames = userMachines.map(m => m.name).join(', ') || 'Keine';
+
+                return `
+                    <tr>
+                        <td>${u.first_name} ${u.last_name}</td>
+                        <td>${u.email || '-'}</td>
+                        <td><span class="badge badge-${u.role}">${u.role === 'admin' ? 'Admin' : 'Anwender'}</span></td>
+                        <td style="font-size: 13px; color: #6b7280;">${machineNames}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ==================== ADMIN: RENTALS ====================
+        async function renderRentalsTable() {
+            document.getElementById('rentalsLoading').classList.add('hidden');
+            document.getElementById('rentalsTableContainer').classList.remove('hidden');
+
+            const tbody = document.getElementById('rentalsTable');
+            const sorted = [...allRentals].sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+
+            if (sorted.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Keine Ausleihen vorhanden</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = sorted.map(r => {
+                const duration = r.end_counter ? (r.end_counter - r.start_counter) : '-';
+                const endDate = r.end_date ? new Date(r.end_date).toLocaleDateString('de-DE') : '-';
+
+                return `
+                    <tr>
+                        <td>${getMachineName(r.machine_id)}</td>
+                        <td>${getUserName(r.user_id)}</td>
+                        <td>${r.start_counter.toLocaleString('de-DE')}</td>
+                        <td>${r.end_counter ? r.end_counter.toLocaleString('de-DE') : '-'}</td>
+                        <td class="time-display">${duration !== '-' ? duration.toLocaleString('de-DE') + ' h' : '-'}</td>
+                        <td>${new Date(r.start_date).toLocaleDateString('de-DE')} - ${endDate}</td>
+                        <td>${r.status === 'active' ? '<span class="badge badge-active">Aktiv</span>' : '<span class="badge badge-returned">Zurückgegeben</span>'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ==================== USER DASHBOARD ====================
+        function renderUserMachines() {
+            const container = document.getElementById('userMachinesGrid');
+            const myMachines = getUserMachines(currentUser.id);
+
+            if (myMachines.length === 0) {
+                container.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;">Ihnen sind keine Maschinen zugewiesen.</div>`;
+                return;
+            }
+
+            container.innerHTML = myMachines.map(m => {
+                const active = allRentals.find(r => r.machine_id === m.id && r.user_id === currentUser.id && r.status === 'active');
+                const memberIds = getMachineMembers(m.id);
+                const userNames = memberIds.map(uid => getUserName(uid)).filter(Boolean).join(', ');
+
+                return `
+                    <div class="machine-card">
+                        <div class="machine-card-header">
+                            <div class="machine-card-title">${m.name}</div>
+                            <div class="machine-card-counter">⏱️ ${m.current_counter.toLocaleString('de-DE')} h</div>
+                        </div>
+                        <div class="machine-card-members"><strong>Mitglieder:</strong> ${userNames}</div>
+                        <div style="display: flex; gap: 8px;">
+                            ${active ? 
+                                `<button class="btn btn-warning" style="flex: 1;" onclick="returnMachine(${m.id})">↩️ Zurückgeben</button>` :
+                                `<button class="btn btn-primary" style="flex: 1;" onclick="rentMachine(${m.id})">📤 Ausleihen</button>`
+                            }
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderUserHistory() {
+            const tbody = document.getElementById('userHistoryTable');
+            const myRentals = allRentals.filter(r => r.user_id === currentUser.id).sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+
+            if (myRentals.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Noch keine Ausleihen</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = myRentals.map(r => {
+                const duration = r.end_counter ? (r.end_counter - r.start_counter) : '-';
+                return `
+                    <tr>
+                        <td>${getMachineName(r.machine_id)}</td>
+                        <td>${r.start_counter.toLocaleString('de-DE')}</td>
+                        <td>${r.end_counter ? r.end_counter.toLocaleString('de-DE') : '-'}</td>
+                        <td class="time-display">${duration !== '-' ? duration.toLocaleString('de-DE') + ' h' : '-'}</td>
+                        <td>${new Date(r.start_date).toLocaleDateString('de-DE')}</td>
+                        <td>${r.status === 'active' ? '<span class="badge badge-active">Aktiv</span>' : '<span class="badge badge-returned">Zurückgegeben</span>'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ==================== RENTALS ====================
+        async function rentMachine(machineId) {
+            const machine = allMachines.find(m => m.id === machineId);
+            const existing = allRentals.find(r => r.machine_id === machineId && r.status === 'active');
+
+            if (existing) {
+                alert('Maschine ist bereits ausgeliehen.');
+                return;
+            }
+
+            rentalAction = 'rent';
+            document.getElementById('rentalMachineId').value = machineId;
+            document.getElementById('rentalMachineName').value = machine.name;
+            document.getElementById('rentalLastCounter').value = machine.current_counter;
+            document.getElementById('rentalCounter').value = '';
+            document.getElementById('rentalCounterLabel').textContent = 'Neuer Zählerstand (Ausleihe)';
+            document.getElementById('rentalBtn').textContent = 'Ausleihen';
+            clearAlerts();
+            document.getElementById('rentalModal').classList.remove('hidden');
+        }
+
+        async function returnMachine(machineId) {
+            const machine = allMachines.find(m => m.id === machineId);
+            activeRental = allRentals.find(r => r.machine_id === machineId && r.user_id === currentUser.id && r.status === 'active');
+
+            if (!activeRental) {
+                alert('Keine aktive Ausleihe gefunden.');
+                return;
+            }
+
+            rentalAction = 'return';
+            document.getElementById('rentalMachineId').value = machineId;
+            document.getElementById('rentalMachineName').value = machine.name;
+            document.getElementById('rentalLastCounter').value = activeRental.start_counter;
+            document.getElementById('rentalCounter').value = '';
+            document.getElementById('rentalCounterLabel').textContent = 'Rückgabe-Zählerstand';
+            document.getElementById('rentalBtn').textContent = 'Zurückgeben';
+            clearAlerts();
+            document.getElementById('rentalModal').classList.remove('hidden');
+        }
+
+        async function saveRentalAction() {
+            const machineId = parseInt(document.getElementById('rentalMachineId').value);
+            const counter = parseInt(document.getElementById('rentalCounter').value);
+            const machine = allMachines.find(m => m.id === machineId);
+
+            if (isNaN(counter)) {
+                showAlert('rentalAlert', 'Bitte einen gültigen Zählerstand eingeben.');
+                return;
+            }
+
+            if (rentalAction === 'rent') {
+                if (counter < machine.current_counter) {
+                    showAlert('rentalAlert', `Zähler muss ≥ ${machine.current_counter} sein.`);
+                    return;
+                }
+                // Create rental + update machine counter
+                await supabase.from('rentals').insert({
+                    machine_id: machineId,
+                    user_id: currentUser.id,
+                    start_counter: counter,
+                    status: 'active'
+                });
+                await supabase.from('machines').update({ current_counter: counter }).eq('id', machineId);
+            } else {
+                // Return
+                if (!activeRental || counter < activeRental.start_counter) {
+                    showAlert('rentalAlert', `Rückgabe-Zähler muss ≥ ${activeRental.start_counter} sein.`);
+                    return;
+                }
+                await supabase.from('rentals').update({
+                    end_counter: counter,
+                    end_date: new Date().toISOString(),
+                    status: 'returned'
+                }).eq('id', activeRental.id);
+                await supabase.from('machines').update({ current_counter: counter }).eq('id', machineId);
+            }
+
+            closeRentalModal();
+            await loadAllData();
+
+            if (currentProfile.role === 'admin') {
+                renderMachinesTable();
+                renderRentalsTable();
+                updateAdminStats();
+            } else {
+                renderUserMachines();
+                renderUserHistory();
+            }
+        }
+
+        function closeRentalModal() {
+            document.getElementById('rentalModal').classList.add('hidden');
+            activeRental = null;
+        }
+
+        // ==================== GAPS ====================
+        function renderGaps() {
+            const container = document.getElementById('gapsContainer');
+            const returnedRentals = allRentals.filter(r => r.status === 'returned').sort((a, b) => a.start_counter - b.start_counter);
+            let gapsFound = [];
+
+            allMachines.forEach(machine => {
+                const machineRentals = returnedRentals.filter(r => r.machine_id === machine.id).sort((a, b) => a.start_counter - b.start_counter);
+                for (let i = 0; i < machineRentals.length - 1; i++) {
+                    const current = machineRentals[i];
+                    const next = machineRentals[i + 1];
+                    if (next.start_counter > current.end_counter) {
+                        gapsFound.push({
+                            machine: machine.name,
+                            from: current.end_counter,
+                            to: next.start_counter,
+                            gap: next.start_counter - current.end_counter,
+                            between: `${new Date(current.end_date).toLocaleDateString('de-DE')} → ${new Date(next.start_date).toLocaleDateString('de-DE')}`
+                        });
+                    }
+                }
+            });
+
+            if (gapsFound.length === 0) {
+                container.innerHTML = `<div class="empty-state">✅ Keine Zähler-Lücken gefunden!</div>`;
+                return;
+            }
+
+            container.innerHTML = gapsFound.map(g => `
+                <div class="gap-item">
+                    <div class="gap-machine">🚜 ${g.machine}</div>
+                    <div style="color: #78350f; font-size: 14px;">
+                        Lücke von <strong>${g.from.toLocaleString('de-DE')} h</strong> bis <strong>${g.to.toLocaleString('de-DE')} h</strong> 
+                        (Differenz: ${g.gap.toLocaleString('de-DE')} h)<br>
+                        <small>Zeitraum: ${g.between}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ==================== YEARLY REPORT ====================
+        function generateYearlyReport() {
+            const year = parseInt(document.getElementById('reportYear').value);
+            const rentals = allRentals.filter(r => {
+                const rYear = new Date(r.start_date).getFullYear();
+                return rYear === year && r.status === 'returned';
+            });
+
+            const container = document.getElementById('reportContainer');
+            if (rentals.length === 0) {
+                container.innerHTML = `<div class="empty-state">Keine Daten für ${year}</div>`;
+                return;
+            }
+
+            const byUser = {};
+            rentals.forEach(r => {
+                if (!byUser[r.user_id]) byUser[r.user_id] = [];
+                byUser[r.user_id].push(r);
+            });
+
+            let html = '';
+            Object.keys(byUser).forEach(userId => {
+                const user = allUsers.find(u => u.id === userId);
+                if (!user) return;
+
+                const userRentals = byUser[userId];
+                let totalHours = 0;
+
+                let machinesHtml = userRentals.map(r => {
+                    const duration = r.end_counter - r.start_counter;
+                    totalHours += duration;
+                    return `
+                        <tr>
+                            <td>${getMachineName(r.machine_id)}</td>
+                            <td>${r.start_counter.toLocaleString('de-DE')} h</td>
+                            <td>${r.end_counter.toLocaleString('de-DE')} h</td>
+                            <td class="time-display">${duration.toLocaleString('de-DE')} h</td>
+                            <td>${new Date(r.start_date).toLocaleDateString('de-DE')}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                html += `
+                    <div class="report-section">
+                        <div class="report-header">
+                            <div class="report-title">👤 ${user.first_name} ${user.last_name}</div>
+                            <div class="report-total">Gesamt: ${totalHours.toLocaleString('de-DE')} h</div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>Maschine</th><th>Start-Zähler</th><th>End-Zähler</th><th>Nutzungsdauer</th><th>Datum</th></tr></thead>
+                                <tbody>${machinesHtml}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ==================== TABS ====================
+        function switchTab(tabName) {
+            document.querySelectorAll('#adminView .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            event.target.classList.add('active');
+            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
+
+            if (tabName === 'machines') renderMachinesTable();
+            if (tabName === 'users') renderUsersTable();
+            if (tabName === 'rentals') renderRentalsTable();
+            if (tabName === 'gaps') renderGaps();
+            if (tabName === 'report') generateYearlyReport();
+        }
+
+        function switchUserTab(tabName) {
+            document.querySelectorAll('#userView .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.user-tab-content').forEach(t => t.classList.add('hidden'));
+            event.target.classList.add('active');
+            document.getElementById('userTab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
+            if (tabName === 'myMachines') renderUserMachines();
+            if (tabName === 'history') renderUserHistory();
+        }
+
+        // ==================== INIT ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            checkSession();
+        });
+    </script>
+</body>
+</html>

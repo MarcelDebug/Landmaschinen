@@ -142,37 +142,6 @@
                     <span id="loginSpinner" class="loading hidden" style="margin-right: 8px;"></span>
                     Anmelden
                 </button>
-                <p style="margin-top: 16px; color: #6b7280; font-size: 14px;">
-                    Noch kein Konto? <a href="#" onclick="toggleAuthMode()" style="color: #667eea; font-weight: 600;">Registrieren</a>
-                </p>
-            </div>
-
-            <div id="registerForm" class="hidden">
-                <h2 style="margin-bottom: 20px; color: #1f2937;">Registrieren</h2>
-                <div id="registerAlert"></div>
-                <div class="form-group">
-                    <label>Vorname</label>
-                    <input type="text" id="regFirstName" placeholder="Max" required>
-                </div>
-                <div class="form-group">
-                    <label>Nachname</label>
-                    <input type="text" id="regLastName" placeholder="Mustermann" required>
-                </div>
-                <div class="form-group">
-                    <label>E-Mail</label>
-                    <input type="email" id="regEmail" placeholder="name@beispiel.de" required>
-                </div>
-                <div class="form-group">
-                    <label>Passwort</label>
-                    <input type="password" id="regPassword" placeholder="Min. 6 Zeichen" required>
-                </div>
-                <button class="btn btn-primary btn-block" onclick="register()" style="margin-top: 8px;">
-                    <span id="regSpinner" class="loading hidden" style="margin-right: 8px;"></span>
-                    Registrieren
-                </button>
-                <p style="margin-top: 16px; color: #6b7280; font-size: 14px;">
-                    Bereits registriert? <a href="#" onclick="toggleAuthMode()" style="color: #667eea; font-weight: 600;">Anmelden</a>
-                </p>
             </div>
         </div>
     </div>
@@ -234,6 +203,7 @@
                     <div class="card">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h2 class="section-title">Benutzerverwaltung</h2>
+                            <button class="btn btn-success" onclick="openCreateUserModal()">+ Benutzer</button>
                         </div>
                         <div id="usersLoading" class="empty-state">Lade Benutzer...</div>
                         <div class="table-container" id="usersTableContainer" class="hidden">
@@ -363,6 +333,47 @@
         </div>
     </div>
 
+    <!-- Create User Modal -->
+    <div id="createUserModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Benutzer anlegen</h3>
+                <button class="close-btn" onclick="closeCreateUserModal()">&times;</button>
+            </div>
+            <div id="createUserAlert"></div>
+            <div class="form-group">
+                <label>Vorname</label>
+                <input type="text" id="newUserFirstName" placeholder="Max">
+            </div>
+            <div class="form-group">
+                <label>Nachname</label>
+                <input type="text" id="newUserLastName" placeholder="Mustermann">
+            </div>
+            <div class="form-group">
+                <label>E-Mail</label>
+                <input type="email" id="newUserEmail" placeholder="name@beispiel.de">
+            </div>
+            <div class="form-group">
+                <label>Temporäres Passwort</label>
+                <input type="text" id="newUserPassword" placeholder="Min. 6 Zeichen">
+            </div>
+            <div class="form-group">
+                <label>Rolle</label>
+                <select id="newUserRole">
+                    <option value="user">Anwender</option>
+                    <option value="admin">Administrator</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeCreateUserModal()" style="flex: 1;">Abbrechen</button>
+                <button class="btn btn-success" onclick="createUser()" style="flex: 1;">
+                    <span id="createUserSpinner" class="loading hidden" style="margin-right: 8px;"></span>
+                    Benutzer anlegen
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==================== SUPABASE INIT ====================
         let db;
@@ -385,17 +396,11 @@
         }
 
         // ==================== AUTH ====================
-        function toggleAuthMode() {
-            document.getElementById('loginForm').classList.toggle('hidden');
-            document.getElementById('registerForm').classList.toggle('hidden');
-            clearAlerts();
-        }
-
         function clearAlerts() {
             document.getElementById('loginAlert').innerHTML = '';
-            document.getElementById('registerAlert').innerHTML = '';
             document.getElementById('machineAlert').innerHTML = '';
             document.getElementById('rentalAlert').innerHTML = '';
+            document.getElementById('createUserAlert').innerHTML = '';
         }
 
         function showAlert(elementId, message, type = 'error') {
@@ -407,45 +412,6 @@
         function setLoading(id, loading) {
             const spinner = document.getElementById(id);
             if (spinner) spinner.classList.toggle('hidden', !loading);
-        }
-
-        async function register() {
-            if (!initSupabase()) return;
-            setLoading('regSpinner', true);
-
-            const firstName = document.getElementById('regFirstName').value.trim();
-            const lastName = document.getElementById('regLastName').value.trim();
-            const email = document.getElementById('regEmail').value.trim().toLowerCase();
-            const password = document.getElementById('regPassword').value;
-
-            if (!firstName || !lastName || !email || !password) {
-                showAlert('registerAlert', 'Bitte alle Felder ausfüllen.');
-                setLoading('regSpinner', false);
-                return;
-            }
-            if (password.length < 6) {
-                showAlert('registerAlert', 'Passwort mindestens 6 Zeichen.');
-                setLoading('regSpinner', false);
-                return;
-            }
-
-            const { data, error } = await db.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: { first_name: firstName, last_name: lastName }
-                }
-            });
-
-            setLoading('regSpinner', false);
-
-            if (error) {
-                showAlert('registerAlert', error.message);
-                return;
-            }
-
-            showAlert('registerAlert', 'Registrierung erfolgreich! Bestätige deine E-Mail (falls aktiviert) und melde dich an.', 'success');
-            setTimeout(toggleAuthMode, 2000);
         }
 
         async function login() {
@@ -705,6 +671,65 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        // ==================== ADMIN: CREATE USER ====================
+        function openCreateUserModal() {
+            document.getElementById('newUserFirstName').value = '';
+            document.getElementById('newUserLastName').value = '';
+            document.getElementById('newUserEmail').value = '';
+            document.getElementById('newUserPassword').value = '';
+            document.getElementById('newUserRole').value = 'user';
+            document.getElementById('createUserAlert').innerHTML = '';
+            document.getElementById('createUserModal').classList.remove('hidden');
+        }
+
+        function closeCreateUserModal() {
+            document.getElementById('createUserModal').classList.add('hidden');
+        }
+
+        async function createUser() {
+            const firstName = document.getElementById('newUserFirstName').value.trim();
+            const lastName  = document.getElementById('newUserLastName').value.trim();
+            const email     = document.getElementById('newUserEmail').value.trim().toLowerCase();
+            const password  = document.getElementById('newUserPassword').value;
+            const role      = document.getElementById('newUserRole').value;
+
+            if (!firstName || !lastName || !email || !password) {
+                showAlert('createUserAlert', 'Bitte alle Felder ausfüllen.');
+                return;
+            }
+            if (password.length < 6) {
+                showAlert('createUserAlert', 'Passwort mindestens 6 Zeichen.');
+                return;
+            }
+
+            setLoading('createUserSpinner', true);
+
+            const { data: { session } } = await db.auth.getSession();
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'apikey': SUPABASE_KEY
+                },
+                body: JSON.stringify({ firstName, lastName, email, password, role })
+            });
+
+            setLoading('createUserSpinner', false);
+
+            const result = await response.json();
+            if (!response.ok) {
+                showAlert('createUserAlert', result.error || 'Fehler beim Anlegen des Benutzers.');
+                return;
+            }
+
+            showAlert('createUserAlert', `Benutzer ${email} wurde angelegt.`, 'success');
+            await loadAllData();
+            renderUsersTable();
+            updateAdminStats();
+            setTimeout(closeCreateUserModal, 1500);
         }
 
         // ==================== ADMIN: RENTALS ====================

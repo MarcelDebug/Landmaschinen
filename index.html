@@ -391,7 +391,9 @@
                 alert('Bitte zuerst SUPABASE_URL und SUPABASE_KEY in der index.html eintragen!');
                 return false;
             }
-            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            if (!db) {
+                db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
             return true;
         }
 
